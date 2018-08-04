@@ -1,0 +1,31 @@
+author:	benjamin boerschinger (benjamin.boerschinger@googlemail.com)
+date:	06/12/12
+
+This is the accompanying material for
+Börschinger, B., Demuth, K., and Johnson, M. "Studying the effect of input size for Bayesian Word Segmentation on the Providence Corpus", COLING 2012
+
+for questions, please contact benjamin.boerschinger@googlemail.com
+
+./Makefile	this is the core for running an experiment
+./buildData.sh	allows you to build the transcription from scratch
+./scripts/	includes scripts to prepare the data, refer to buildData.sh
+./pbs/coling.sh	a front-end to run one of our experiments
+./dictionary	includes the phonemic dictionaries required for transcribing the corpus
+./Data		includes the corpus we used for the experiments
+./Data/test1*	the held-out test-data sampled from month 22 we report on
+./Data/test2*	additional held-out test-data
+./testfiles	includes copies of the above files so you can re-build the data from scratch without loosing these files
+./programs	programs to generate grammars, collect and evaluate Adaptor Grammar output
+
+You will need Mark Johnson's Adaptor Grammar software, available here:
+http://web.science.mq.edu.au/~mjohnson/Software.htm
+
+If you rebuild the data, note the following:
+
+Two utterances have been removed as they were too long, these are:
+
+21st month of Naima:
+hh ay   ix t s  ay      hh ow p y uw    hh ae d g ix d  hh aa l ax d ey z       ax n d  ay      w ah z  k ao l ix ng    t ix    s iy    ix f    w iy    er      b ow th s t ih l        ao n    f er    ey      p l ey  d ey t  f er    th er z d iy    dh ah   n ay n th       dh ix s th er z d iy    m ay    f ow n  hh ow m f ow n  n ah m b er     ix z    w iy    hh ae d s eh d  t uw    hh w ih ch      ix z    f ay n  aa      aw r    n ae p  t ay m  hh ih r ix z    s ah m hh w ah t        ah n p r ix d ih k t ax b ax l  b ah t  y uw    k ax n  t eh l  m iy    hh w ah t       w er k s        f er    y uw    ax n d  w iy    er      ae t    ih n    hh w ih ch      ix z    p r ae k t ax k ax l iy r ay t  d aw n  dh ah   s t r iy t      s aw th m ey n  s t r iy t      f er m  f ao r  s iy z  ay s    k r iy m        ix f    y uw    n ow    dh ax t s ow    ay      ay l    l uh k  f ao r w er d   t ix    hh ih r ix ng   f er m  y uw    ae t    s ah m  p oy n t        ax n d  hh ow p w iy    k ax n  s t ih l        d uw    dh ix s th ae ng k s    b ay
+
+15th month of Lily:
+dh ix s ix z    dh ae t s       y uw zh ax l iy hh aw   sh iy   s p eh n z      l ay k  ey      g ix d  ay      w uh d  s ey    sh iy l hh ae v ey      g ix d  p aa k ax t     ax v    m ey b iy       ax n    aw r    ih n    dh ah   ae f t er n uw n        er      ax n    aw r    ih n    dh ah   m ao r n ix ng  aw r    ih n    dh ah   ae f t er n uw n        ao l dh ow      ix t s  y uw zh ax l iy ih n    dh ah   ae f t er n uw n        hh w eh n       w ih l  g ow    t ix    m ay    s ih s t er z   hh aw s ax n d  sh iy   ax n d  dh ah   k ih d z        er      r ah n ix ng    er aw n ax n d  sh iy l f ow k ix s     ao n    l ay k  hh w ah n       l ay k  hh w ah n       ax v    dh eh r t oy z  ax n d  sh iy l s ih t  dh eh r ax n d  t ao k  t ix    hh er s eh l f  ax n d  ix t s  y uw zh ax l iy t ix    hh er s eh l f

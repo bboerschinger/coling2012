@@ -1,0 +1,429 @@
+#!/usr/bin/env python
+
+usage = """input2grammar.py
+
+  (c) Mark Johnson, 7th August, 2012
+
+Reads a py-cfg input file, extracts the tokens form it, and writes a
+grammar based on those tokens to stdout.
+"""
+
+import optparse, re, sys
+
+global vowel_rex, vowels, consonants
+vowel_rex = None
+vowels = None
+consonants = None
+
+def tokens(inf):
+    """Returns set of tokens that appear in inf."""
+    return set(inf.read().split())
+
+colloc_header = """1 1 Collocs --> Colloc
+1 1 Collocs --> Collocs Colloc
+Colloc --> Words
+"""
+
+def colloc(toks, outf):
+    outf.write(colloc_header)
+    unigram(toks, outf)
+
+colloc2_header = """1 1 Colloc2s --> Colloc2
+1 1 Colloc2s --> Colloc2s Colloc2
+Colloc2 --> Collocs
+"""
+
+def colloc2(toks, outf):
+    outf.write(colloc2_header)
+    colloc(toks, outf)
+
+unigram_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> Segs
+1 1 Segs --> Seg
+1 1 Segs --> Segs Seg
+"""
+
+def unigram(toks, outf):
+    outf.write(unigram_header)
+    for tok in toks:
+        outf.write("1 1 Seg --> {}\n".format(tok))
+    
+invcolloc_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> Subwords
+1 1 Subwords --> Subword
+1 1 Subwords --> Subwords Subword
+Subword --> Segs
+1 1 Segs --> Seg
+1 1 Segs --> Segs Seg
+"""
+
+def invcolloc(toks, outf):
+    outf.write(invcolloc_header)
+    for tok in toks:
+        outf.write("1 1 Seg --> {}\n".format(tok))
+
+unigrammorph_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> Stem
+Word --> Stem Suffix
+Stem --> Segs
+Suffix --> Segs
+1 1 Segs --> Seg
+1 1 Segs --> Segs Seg
+"""
+
+def unigrammorph(toks, outf):
+    outf.write(unigrammorph_header)
+    for tok in toks:
+        outf.write("1 1 Seg --> {}\n".format(tok))
+ 
+def collocmorph(toks, outf):
+    outf.write(colloc_header)
+    unigrammorph(toks, outf)
+
+def colloc2morph(toks, outf):
+    outf.write(colloc2_header)
+    collocmorph(toks, outf)
+
+syll_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> Syll
+Word --> Syll Syll
+Word --> Syll Syll Syll
+Word --> Syll Syll Syll Syll
+1e-10 Word --> Consonants
+1 1 Syll --> Onset Rhyme
+1 1 Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+"""
+
+def syll(toks, outf):
+    outf.write(syll_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+
+def collocsyll(toks, outf):
+    outf.write(colloc_header)
+    syll(toks, outf)
+
+def colloc2syll(toks, outf):
+    outf.write(colloc2_header)
+    collocsyll(toks, outf)
+
+syllIF_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> SyllIF
+Word --> SyllI SyllF
+Word --> SyllI Syll SyllF
+Word --> SyllI Syll Syll SyllF
+1e-10 Word --> Consonants
+1 1 Syll --> Onset Rhyme
+1 1 Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+1 1 SyllIF --> OnsetI RhymeF
+1 1 SyllIF --> RhymeF
+1 1 SyllI --> OnsetI Rhyme
+1 1 SyllI --> Rhyme
+1 1 SyllF --> Onset RhymeF
+1 1 SyllF --> RhymeF
+1 1 RhymeF --> Nucleus CodaF
+1 1 RhymeF --> Nucleus
+OnsetI --> Consonants
+CodaF --> Consonants
+"""
+
+def syllIF(toks, outf):
+    outf.write(syllIF_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+
+def collocsyllIF(toks, outf):
+    outf.write(colloc_header)
+    syllIF(toks, outf)
+
+def colloc2syllIF(toks, outf):
+    outf.write(colloc2_header)
+    collocsyllIF(toks, outf)
+
+SyllIF_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> SyllIF
+Word --> SyllI SyllF
+Word --> SyllI Syll SyllF
+Word --> SyllI Syll Syll SyllF
+1e-10 Word --> Consonants
+Syll --> Onset Rhyme
+Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+SyllIF --> OnsetI RhymeF
+SyllIF --> RhymeF
+SyllI --> OnsetI Rhyme
+SyllI --> Rhyme
+SyllF --> Onset RhymeF
+SyllF --> RhymeF
+1 1 RhymeF --> Nucleus CodaF
+1 1 RhymeF --> Nucleus
+OnsetI --> Consonants
+CodaF --> Consonants
+"""
+
+def SyllIF(toks, outf):
+    outf.write(SyllIF_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+
+def collocSyllIF(toks, outf):
+    outf.write(colloc_header)
+    SyllIF(toks, outf)
+
+def colloc2SyllIF(toks, outf):
+    outf.write(colloc2_header)
+    collocSyllIF(toks, outf)
+
+noise_header = """1 1 Noise --> NoiseSeg
+1 1 Noise --> Noise NoiseSeg
+"""
+
+def noise(toks, outf):
+    outf.write(noise_header)
+    for t in toks:
+        outf.write("1 1 NoiseSeg --> {}".format(t))
+
+ncolloc_header = """1 1 Sentence --> Colloc
+1 1 Sentence --> Noise
+"""
+
+def ncolloc(toks, outf):
+    outf.write(ncolloc_header)
+    colloc(toks, outf)
+
+def ncollocmorph(toks, outf):
+    outf.write(ncolloc_header)
+    collocmorph(toks, outf)
+
+def ncollocsyll(toks, outf):
+    outf.write(ncolloc_header)
+    collocsyll(toks, outf)
+        
+nsyll_header = """1 1 Words --> NoisyWord
+1 1 Words --> Words NoisyWord
+1 1 NoisyWord --> Noise
+1 1 NoisyWord --> Word
+1 1 Noise --> NoiseSeg
+1 1 Noise --> Noise NoiseSeg
+Word --> Syll
+Word --> Syll Syll
+Word --> Syll Syll Syll
+Word --> Syll Syll Syll Syll
+1 1 Syll --> Onset Rhyme
+1 1 Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+"""
+
+def nsyll(toks, outf):
+    outf.write(nsyll_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+    for t in toks:
+        outf.write('1 1 NoiseSeg --> {}\n'.format(t))
+
+def collocnsyll(toks, outf):
+    outf.write(colloc_header)
+    nsyll(toks, outf)
+
+def colloc2nsyll(toks, outf):
+    outf.write(colloc2_header)
+    collocnsyll(toks, outf)
+
+Syll_header = """1 1 Words --> Word
+1 1 Words --> Words Word
+Word --> Syll
+Word --> Syll Syll
+Word --> Syll Syll Syll
+Word --> Syll Syll Syll Syll
+1e-10 Word --> Consonants
+Syll --> Onset Rhyme
+Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+"""
+
+def Syll(toks, outf):
+    outf.write(Syll_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+
+def collocSyll(toks, outf):
+    outf.write(colloc_header)
+    Syll(toks, outf)
+
+def colloc2Syll(toks, outf):
+    outf.write(colloc2_header)
+    collocSyll(toks, outf)
+
+def ncollocSyll(toks, outf):
+    outf.write(ncolloc_header)
+    collocSyll(toks, outf)
+        
+nSyll_header = """1 1 Words --> NoisyWord
+1 1 Words --> Words NoisyWord
+1 1 NoisyWord --> Noise
+1 1 NoisyWord --> Word
+1 1 Noise --> NoiseSeg
+1 1 Noise --> Noise NoiseSeg
+Word --> Syll
+Word --> Syll Syll
+Word --> Syll Syll Syll
+Word --> Syll Syll Syll Syll
+Syll --> Onset Rhyme
+Syll --> Rhyme
+1 1 Rhyme --> Nucleus Coda
+1 1 Rhyme --> Nucleus
+Onset --> Consonants
+Nucleus --> Vowels
+Coda --> Consonants
+1 1 Consonants --> Consonant
+1 1 Consonants --> Consonants Consonant
+1 1 Vowels --> Vowel
+1 1 Vowels --> Vowels Vowel
+"""
+
+def nSyll(toks, outf):
+    outf.write(nSyll_header)
+    for v in vowels:
+        outf.write('1 1 Vowel --> {}\n'.format(v))
+    for c in consonants:
+        outf.write('1 1 Consonant --> {}\n'.format(c))
+    for t in toks:
+        outf.write('1 1 NoiseSeg --> {}\n'.format(t))
+
+def collocnSyll(toks, outf):
+    outf.write(colloc_header)
+    nSyll(toks, outf)
+
+def colloc2nSyll(toks, outf):
+    outf.write(colloc2_header)
+    collocnsyll(toks, outf)
+
+
+
+
+# grammar_writer maps the grammar's name to
+# the program that writes that grammar
+
+grammar_writer = { 'colloc':colloc, 
+                   'colloc2':colloc2,
+                   'collocmorph':collocmorph,
+                   'colloc2morph':colloc2morph,
+                   'collocsyll':collocsyll,
+                   'colloc2syll':colloc2syll,
+                   'collocnsyll':collocnsyll,
+                   'colloc2nsyll':colloc2nsyll,
+                   'collocSyll':collocSyll,
+                   'colloc2Syll':colloc2Syll,
+                   'collocnSyll':collocnSyll,
+                   'colloc2nSyll':colloc2nSyll,
+                   'invcolloc':invcolloc, 
+                   'syll':syll,
+                   'nsyll':nsyll,
+                   'Syll':Syll,
+                   'nSyll':nSyll,
+                   'ncolloc':ncolloc,
+                   'ncollocmorph':ncollocmorph,
+                   'ncollocsyll':ncollocsyll,
+                   'ncollocSyll':ncollocSyll,
+                   'unigram':unigram,
+                   'unigrammorph':unigrammorph,
+                   'syllIF':syllIF,
+                   'collocsyllIF':collocsyllIF,
+                   'colloc2syllIF':colloc2syllIF,
+                   'SyllIF':SyllIF,
+                   'collocSyllIF':collocSyllIF,
+                   'colloc2SyllIF':colloc2SyllIF
+                   }
+
+if __name__ == '__main__':
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-g", "--grammar", dest="grammar", default="unigram",
+                      help="type of grammar to produce")
+    parser.add_option("-l", "--list-grammars", dest='list_grammars', action='store_true',
+                      help="print out names of grammars that we can generate")
+    parser.add_option("-v", "--vowel-re", dest="vowel_re",
+                      default=r"^[aeiou].*$",
+                      help="regex identifying vowel segments")
+    options, args = parser.parse_args()
+
+    if options.list_grammars:
+        sys.stdout.write(' '.join(sorted(grammar_writer.keys())))
+        sys.stdout.write('\n')
+        sys.exit(0)
+
+    writer = grammar_writer.get(options.grammar)
+    if not writer:
+        sys.exit("Unknown grammar: {}\nAvailable grammars: {}\n".format(
+                options.grammar, ' '.join(sorted(grammar_writer.keys()))))
+
+    if len(args) == 0:
+        inf = sys.stdin
+    else:
+        assert(len(args) == 1)
+        inf = open(args[0], "rU")
+
+    toks = tokens(inf)
+
+    vowel_rex = re.compile(options.vowel_re)
+    vowels = [tok for tok in toks if vowel_rex.match(tok)]
+    consonants = [tok for tok in toks if not vowel_rex.match(tok)]
+
+    writer(toks, sys.stdout)
